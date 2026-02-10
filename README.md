@@ -24,7 +24,7 @@ A modern, cloud-based invoice management application built with Vue.js 3 and Fir
 - **Professional Layout** - Optimized for business use
 
 ### 🎨 Modern UI/UX
-- **Responsive Design** - Works on desktop and mobile
+- **Responsive Design** - Works on desktop
 - **Clean Interface** - Professional and intuitive design
 - **Landing Page** - Marketing page with call-to-action
 - **Gradient Backgrounds** - Modern visual design
