@@ -9,7 +9,7 @@
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist"
   },
-  "homepage": "https://neerajsaini.github.io/vue-invoice-app",
+  "homepage": "https://neeraj3071.github.io/InvoicePro",
   "dependencies": {
     "core-js": "^3.6.5",
     "firebase": "^8.10.1",
