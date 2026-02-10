@@ -77,11 +77,15 @@ export default createStore({
   },
   actions: {
     // Authentication actions
-    CHECK_AUTH({ commit }) {
+    async CHECK_AUTH({ commit }) {
       const user = authService.getCurrentUser();
       if (user) {
-        commit("SET_USER", user);
-        return user;
+        // Verify token is still valid
+        const isValid = await authService.verifyToken();
+        if (isValid) {
+          commit("SET_USER", user);
+          return user;
+        }
       }
       return null;
     },
@@ -89,10 +93,10 @@ export default createStore({
     async LOGIN({ commit }, { email, password }) {
       try {
         console.log('LOGIN action called with:', { email });
-        const user = authService.login(email, password);
-        console.log('Login successful, user:', user);
-        commit("SET_USER", user);
-        return user;
+        const result = await authService.login(email, password);
+        console.log('Login successful, user:', result.user);
+        commit("SET_USER", result.user);
+        return result.user;
       } catch (error) {
         console.error('LOGIN action error:', error);
         throw error;
@@ -102,10 +106,10 @@ export default createStore({
     async REGISTER({ commit }, userData) {
       try {
         console.log('REGISTER action called with:', userData);
-        const user = authService.register(userData);
-        console.log('Registration successful, user:', user);
-        commit("SET_USER", user);
-        return user;
+        const result = await authService.register(userData);
+        console.log('Registration successful, user:', result.user);
+        commit("SET_USER", result.user);
+        return result.user;
       } catch (error) {
         console.error('REGISTER action error:', error);
         throw error;
