@@ -1,4 +1,7 @@
 module.exports = {
   transpileDependencies: [],
-  lintOnSave: false
+  lintOnSave: false,
+  publicPath: process.env.NODE_ENV === 'production'
+    ? '/vue-invoice-app/'
+    : '/'
 }
