@@ -1,15 +1,19 @@
 import firebase from "firebase/app";
 import "firebase/firestore";
+import "firebase/auth";
 
 var firebaseConfig = {
-  apiKey: "AIzaSyBtX0zbq8OWFoczz-D55IEQ-zQxcmjZ6BU",
-  authDomain: "invoice-app-yt.firebaseapp.com",
-  projectId: "invoice-app-yt",
-  storageBucket: "invoice-app-yt.appspot.com",
-  messagingSenderId: "638958069840",
-  appId: "1:638958069840:web:2a359ba0cf4b8c7b648955",
+  apiKey: "AIzaSyCv8S4fd6oB-7IwWJ9zzHcbonhWzaW71q8",
+  authDomain: "vue-invoice-app-fbf5f.firebaseapp.com",
+  projectId: "vue-invoice-app-fbf5f",
+  storageBucket: "vue-invoice-app-fbf5f.firebasestorage.app",
+  messagingSenderId: "459554758949",
+  appId: "1:459554758949:web:f2adaab2441b5e3c34facc",
+  measurementId: "G-MGXR26QM2G"
 };
 
 const firebaseApp = firebase.initializeApp(firebaseConfig);
 
-export default firebaseApp.firestore();
+export const db = firebaseApp.firestore();
+export const auth = firebaseApp.auth();
+export default db;

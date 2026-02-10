@@ -1,9 +1,15 @@
 .DS_Store
 node_modules
 /dist
+backend/
 
+# Firebase
+.firebase/
+.firebaserc
+firebase-debug.log
 
 # local env files
+.env
 .env.local
 .env.*.local
 

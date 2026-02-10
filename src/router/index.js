@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router";
 import Home from "../views/Home.vue";
 import InvoiceView from "../views/InvoiceView.vue";
-import authService from "../auth/authService";
+import store from "../store";
 
 const routes = [
   {
@@ -25,7 +25,7 @@ const router = createRouter({
 
 // Navigation guard to check authentication
 router.beforeEach((to, from, next) => {
-  const isAuthenticated = authService.isAuthenticated();
+  const isAuthenticated = store.state.isAuthenticated;
   
   console.log(`Router guard: navigating to ${to.path}, authenticated: ${isAuthenticated}`);
   

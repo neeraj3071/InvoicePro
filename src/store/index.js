@@ -1,6 +1,6 @@
 import { createStore } from "vuex";
-import localDB from "../storage/localStorage";
-import authService from "../auth/authService";
+import { db, auth } from "../firebase/firebaseInit";
+import firebase from "firebase/app";
 
 export default createStore({
   state: {
@@ -78,118 +78,170 @@ export default createStore({
   actions: {
     // Authentication actions
     async CHECK_AUTH({ commit }) {
-      const user = authService.getCurrentUser();
-      if (user) {
-        // Verify token is still valid
-        const isValid = await authService.verifyToken();
-        if (isValid) {
-          commit("SET_USER", user);
-          return user;
-        }
-      }
-      return null;
+      return new Promise((resolve) => {
+        auth.onAuthStateChanged((user) => {
+          if (user) {
+            const userData = {
+              uid: user.uid,
+              email: user.email,
+              displayName: user.displayName || user.email.split('@')[0],
+            };
+            commit("SET_USER", userData);
+            resolve(userData);
+          } else {
+            commit("SET_USER", null);
+            resolve(null);
+          }
+        });
+      });
     },
     
     async LOGIN({ commit }, { email, password }) {
       try {
-        console.log('LOGIN action called with:', { email });
-        const result = await authService.login(email, password);
-        console.log('Login successful, user:', result.user);
-        commit("SET_USER", result.user);
-        return result.user;
+        // Normalize email (trim and lowercase)
+        const normalizedEmail = email.trim().toLowerCase();
+        const userCredential = await auth.signInWithEmailAndPassword(normalizedEmail, password);
+        const user = {
+          uid: userCredential.user.uid,
+          email: userCredential.user.email,
+          displayName: userCredential.user.displayName || normalizedEmail.split('@')[0],
+        };
+        commit("SET_USER", user);
+        return user;
       } catch (error) {
-        console.error('LOGIN action error:', error);
-        throw error;
+        console.error('Firebase login error:', error);
+        
+        // Provide user-friendly error messages
+        let errorMessage = 'Login failed. Please try again.';
+        
+        if (error.code === 'auth/invalid-email') {
+          errorMessage = 'Invalid email address format.';
+        } else if (error.code === 'auth/user-disabled') {
+          errorMessage = 'This account has been disabled.';
+        } else if (error.code === 'auth/user-not-found') {
+          errorMessage = 'No account found with this email. Please sign up first.';
+        } else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+          errorMessage = 'Incorrect password. Please try again.';
+        } else if (error.message && error.message.includes('INVALID_LOGIN_CREDENTIALS')) {
+          errorMessage = 'Invalid email or password. Please check your credentials and try again.';
+        } else if (error.code === 'auth/too-many-requests') {
+          errorMessage = 'Too many failed attempts. Please try again later or reset your password.';
+        } else if (error.code === 'auth/network-request-failed') {
+          errorMessage = 'Network error. Please check your internet connection.';
+        }
+        
+        throw new Error(errorMessage);
       }
     },
     
-    async REGISTER({ commit }, userData) {
+    async REGISTER({ commit }, { firstName, lastName, email, password }) {
       try {
-        console.log('REGISTER action called with:', userData);
-        const result = await authService.register(userData);
-        console.log('Registration successful, user:', result.user);
-        commit("SET_USER", result.user);
-        return result.user;
+        // Normalize email (trim and lowercase)
+        const normalizedEmail = email.trim().toLowerCase();
+        const userCredential = await auth.createUserWithEmailAndPassword(normalizedEmail, password);
+        
+        // Update user profile with display name
+        await userCredential.user.updateProfile({
+          displayName: `${firstName} ${lastName}`,
+        });
+        
+        const user = {
+          uid: userCredential.user.uid,
+          email: userCredential.user.email,
+          displayName: `${firstName} ${lastName}`,
+          firstName,
+          lastName,
+        };
+        commit("SET_USER", user);
+        return user;
       } catch (error) {
-        console.error('REGISTER action error:', error);
-        throw error;
+        console.error('Firebase registration error:', error);
+        
+        // Provide user-friendly error messages
+        let errorMessage = 'Registration failed. Please try again.';
+        
+        if (error.code === 'auth/email-already-in-use') {
+          errorMessage = 'This email is already registered. Please login instead.';
+        } else if (error.code === 'auth/invalid-email') {
+          errorMessage = 'Invalid email address format.';
+        } else if (error.code === 'auth/operation-not-allowed') {
+          errorMessage = 'Email/password accounts are not enabled. Please contact support.';
+        } else if (error.code === 'auth/weak-password') {
+          errorMessage = 'Password is too weak. Please use at least 6 characters.';
+        } else if (error.code === 'auth/network-request-failed') {
+          errorMessage = 'Network error. Please check your internet connection.';
+        }
+        
+        throw new Error(errorMessage);
       }
     },
     
-    LOGOUT({ commit }) {
-      console.log('LOGOUT action called');
-      authService.logout();
-      commit("LOGOUT_USER");
-      console.log('User logged out successfully');
+    async LOGOUT({ commit }) {
+      try {
+        await auth.signOut();
+        commit("LOGOUT_USER");
+        console.log('User logged out successfully');
+      } catch (error) {
+        console.error('Logout error:', error);
+      }
     },
 
-    // Invoice actions (user-specific)
+    // Invoice actions (Firebase Firestore)
     async GET_INVOICES({ commit, state }) {
-      if (!state.isAuthenticated) {
+      if (!state.isAuthenticated || !state.currentUser) {
         return;
       }
 
       try {
-        const invoices = localDB.getInvoices();
-        
-        // Clear existing data to avoid duplicates
+        // Clear existing data
         state.invoiceData = [];
         
-        invoices.forEach((invoice) => {
+        const results = await db.collection("invoices")
+          .where("userId", "==", state.currentUser.uid)
+          .get();
+        
+        results.forEach((doc) => {
           const data = {
-            docId: invoice.docId,
-            invoiceId: invoice.invoiceId,
-            billerStreetAddress: invoice.billerStreetAddress,
-            billerCity: invoice.billerCity,
-            billerZipCode: invoice.billerZipCode,
-            billerCountry: invoice.billerCountry,
-            clientName: invoice.clientName,
-            clientEmail: invoice.clientEmail,
-            clientStreetAddress: invoice.clientStreetAddress,
-            clientCity: invoice.clientCity,
-            clientZipCode: invoice.clientZipCode,
-            clientCountry: invoice.clientCountry,
-            invoiceDateUnix: invoice.invoiceDateUnix,
-            invoiceDate: invoice.invoiceDate,
-            paymentTerms: invoice.paymentTerms,
-            paymentDueDateUnix: invoice.paymentDueDateUnix,
-            paymentDueDate: invoice.paymentDueDate,
-            productDescription: invoice.productDescription,
-            invoiceItemList: invoice.invoiceItemList,
-            invoiceTotal: invoice.invoiceTotal,
-            invoicePending: invoice.invoicePending,
-            invoiceDraft: invoice.invoiceDraft,
-            invoicePaid: invoice.invoicePaid,
+            docId: doc.id,
+            ...doc.data(),
           };
           commit("SET_INVOICE_DATA", data);
         });
         
         commit("INVOICES_LOADED");
-        console.log("User invoices loaded from localStorage:", invoices.length);
+        console.log("User invoices loaded from Firebase:", results.size);
       } catch (error) {
-        console.log("LocalStorage loading failed:", error);
+        console.error("Error loading invoices:", error);
         commit("INVOICES_LOADED");
       }
     },
-    async UPDATE_INVOICE({ commit, dispatch }, { docId, routeId }) {
-      commit("DELETE_INVOICE", docId);
-      await dispatch("GET_INVOICES");
-      commit("TOGGLE_INVOICE");
-      commit("TOGGLE_EDIT_INVOICE");
-      commit("SET_CURRENT_INVOICE", routeId);
+    
+    async UPDATE_INVOICE({ commit, dispatch, state }, { docId, routeId }) {
+      try {
+        await db.collection("invoices").doc(docId).delete();
+        commit("DELETE_INVOICE", docId);
+        await dispatch("GET_INVOICES");
+        commit("TOGGLE_INVOICE");
+        commit("TOGGLE_EDIT_INVOICE");
+        commit("SET_CURRENT_INVOICE", routeId);
+      } catch (error) {
+        console.error("Error updating invoice:", error);
+      }
     },
+    
     async DELETE_INVOICE({ commit }, docId) {
       try {
-        localDB.deleteInvoice(docId);
+        await db.collection("invoices").doc(docId).delete();
         commit("DELETE_INVOICE", docId);
-        console.log("Invoice deleted from localStorage");
+        console.log("Invoice deleted from Firebase");
       } catch (error) {
         console.error("Error deleting invoice:", error);
       }
     },
+    
     async UPDATE_STATUS_TO_PAID({ commit }, docId) {
       try {
-        localDB.updateInvoice(docId, {
+        await db.collection("invoices").doc(docId).update({
           invoicePaid: true,
           invoicePending: false,
         });
@@ -199,9 +251,10 @@ export default createStore({
         console.error("Error updating invoice status:", error);
       }
     },
+    
     async UPDATE_STATUS_TO_PENDING({ commit }, docId) {
       try {
-        localDB.updateInvoice(docId, {
+        await db.collection("invoices").doc(docId).update({
           invoicePaid: false,
           invoicePending: true,
           invoiceDraft: false,

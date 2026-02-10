@@ -123,7 +123,7 @@
 </template>
 
 <script>
-import localDB from "../storage/localStorage";
+import { db } from "../firebase/firebaseInit";
 import Loading from "../components/Loading";
 import { mapActions, mapMutations, mapState } from "vuex";
 import { uid } from "uid";
@@ -251,6 +251,7 @@ export default {
       try {
         const invoiceData = {
           invoiceId: uid(6),
+          userId: this.$store.state.currentUser.uid,
           billerStreetAddress: this.billerStreetAddress,
           billerCity: this.billerCity,
           billerZipCode: this.billerZipCode,
@@ -274,11 +275,11 @@ export default {
           invoicePaid: null,
         };
 
-        localDB.saveInvoice(invoiceData);
+        await db.collection("invoices").add(invoiceData);
         this.GET_INVOICES();
         alert("Invoice created successfully!");
       } catch (error) {
-        console.log("LocalStorage save failed:", error);
+        console.log("Firebase save failed:", error);
         alert("Error: Could not save invoice");
       }
 
@@ -316,7 +317,7 @@ export default {
           invoiceTotal: this.invoiceTotal,
         };
 
-        localDB.updateInvoice(this.docId, updatedData);
+        await db.collection("invoices").doc(this.docId).update(updatedData);
 
         const data = {
           docId: this.docId,
@@ -326,7 +327,7 @@ export default {
         this.UPDATE_INVOICE(data);
         alert("Invoice updated successfully!");
       } catch (error) {
-        console.log("LocalStorage update failed:", error);
+        console.log("Firebase update failed:", error);
         alert("Error: Could not update invoice");
       }
 
