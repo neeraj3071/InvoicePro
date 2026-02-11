@@ -61,17 +61,17 @@ export default {
     Modal,
     LandingPage,
   },
-  created() {
+  async created() {
     console.log('App.vue created - checking authentication...');
     
     // Check if user is already authenticated
-    const user = this.CHECK_AUTH();
+    const user = await this.CHECK_AUTH();
     console.log('Authentication check result:', user);
     
     // Load invoices if authenticated
     if (this.isAuthenticated) {
       console.log('User is authenticated, loading invoices...');
-      this.GET_INVOICES();
+      await this.GET_INVOICES();
     } else {
       console.log('User not authenticated, showing landing page');
     }
@@ -82,15 +82,16 @@ export default {
   methods: {
     ...mapActions(["GET_INVOICES", "CHECK_AUTH"]),
 
-    handleAuthSuccess() {
+    async handleAuthSuccess() {
       console.log('Authentication successful! Loading user data...');
       
       // Load user's invoices after successful authentication
-      this.GET_INVOICES().then(() => {
+      try {
+        await this.GET_INVOICES();
         console.log('Invoices loaded successfully');
-      }).catch(error => {
+      } catch (error) {
         console.error('Error loading invoices:', error);
-      });
+      }
     },
 
     checkScreen() {
